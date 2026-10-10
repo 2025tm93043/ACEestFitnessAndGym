@@ -1,8 +1,33 @@
-"""Static program catalogue (ACEest v1.0)."""
+"""Static program catalogue (4 programs since ACEest v2.2.4).
+
+Legacy short codes FL / MG still resolve (aliases of FL-3 / MG-PPL).
+"""
 
 PROGRAMS = {
-    "Fat Loss (FL)": {
-        "code": "FL",
+    "Fat Loss (FL) – 3 day": {
+        "code": "FL-3",
+        "aliases": ["FL"],
+        "description": "3-day full-body fat loss",
+        "calorie_factor": 22,
+        "color": "#e74c3c",
+        "workout": (
+            "Mon: Back Squat 5x5 + Core\n"
+            "Wed: Bench Press + 21-15-9\n"
+            "Fri: Deadlift + Box Jumps"
+        ),
+        "diet": (
+            "Breakfast: Egg Whites + Oats\n"
+            "Lunch: Grilled Chicken + Brown Rice\n"
+            "Dinner: Fish Curry + Millet Roti\n"
+            "Target: ~2000 kcal"
+        ),
+    },
+    "Fat Loss (FL) – 5 day": {
+        "code": "FL-5",
+        "aliases": [],
+        "description": "5-day split, higher volume fat loss",
+        "calorie_factor": 24,
+        "color": "#e74c3c",
         "workout": (
             "Mon: Back Squat 5x5 + Core\n"
             "Tue: EMOM 20min Assault Bike\n"
@@ -14,13 +39,15 @@ PROGRAMS = {
             "Breakfast: Egg Whites + Oats\n"
             "Lunch: Grilled Chicken + Brown Rice\n"
             "Dinner: Fish Curry + Millet Roti\n"
-            "Target: ~2000 kcal"
+            "Target: ~2200 kcal"
         ),
-        "color": "#e74c3c",
-        "calorie_factor": 22,
     },
-    "Muscle Gain (MG)": {
-        "code": "MG",
+    "Muscle Gain (MG) – PPL": {
+        "code": "MG-PPL",
+        "aliases": ["MG"],
+        "description": "Push/Pull/Legs hypertrophy",
+        "calorie_factor": 35,
+        "color": "#2ecc71",
         "workout": (
             "Mon: Squat 5x5\n"
             "Tue: Bench 5x5\n"
@@ -35,11 +62,13 @@ PROGRAMS = {
             "Dinner: Mutton Curry + Rice\n"
             "Target: ~3200 kcal"
         ),
-        "color": "#2ecc71",
-        "calorie_factor": 35,
     },
     "Beginner (BG)": {
         "code": "BG",
+        "aliases": [],
+        "description": "3-day simple beginner full-body",
+        "calorie_factor": 26,
+        "color": "#3498db",
         "workout": (
             "Full Body Circuit:\n"
             "- Air Squats\n"
@@ -52,8 +81,6 @@ PROGRAMS = {
             "Idli / Dosa / Rice + Dal\n"
             "Protein Target: 120g/day"
         ),
-        "color": "#3498db",
-        "calorie_factor": 26,
     },
 }
 
@@ -70,7 +97,8 @@ def resolve(identifier):
         return None, None
     key = str(identifier).strip().lower()
     for name, data in PROGRAMS.items():
-        if key == name.lower() or key == data["code"].lower():
+        names = [name.lower(), data["code"].lower()] + [a.lower() for a in data["aliases"]]
+        if key in names:
             return name, data
     return None, None
 

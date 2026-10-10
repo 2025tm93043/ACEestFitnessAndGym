@@ -31,11 +31,18 @@ def validate_client(payload):
     elif not program_name:
         errors.append("unknown program")
 
+    def positive(field, cast, maximum):
+        value = parse_number(payload, field, cast, None, 0, maximum, errors)
+        return value if value else None  # 0 / missing -> NULL, like the desktop app
+
     clean = {
         "name": name,
         "program": program_name,
-        "age": parse_number(payload, "age", int, 0, 0, 120, errors),
-        "weight": parse_number(payload, "weight", float, 0.0, 0, 500, errors),
+        "age": positive("age", int, 120),
+        "height": positive("height", float, 300),
+        "weight": positive("weight", float, 500),
+        "target_weight": positive("target_weight", float, 500),
+        "target_adherence": positive("target_adherence", int, 100),
     }
     return clean, errors
 
@@ -60,8 +67,9 @@ def save_client(clean):
     clean["calories"] = programs.estimate_calories(clean["weight"], clean["program"])
     db = get_db()
     db.execute(
-        "INSERT OR REPLACE INTO clients (name, age, weight, program, calories) "
-        "VALUES (:name, :age, :weight, :program, :calories)",
+        "INSERT OR REPLACE INTO clients (name, age, height, weight, program, calories, "
+        "target_weight, target_adherence) VALUES (:name, :age, :height, :weight, :program, "
+        ":calories, :target_weight, :target_adherence)",
         clean,
     )
     db.commit()

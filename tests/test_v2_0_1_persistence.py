@@ -12,7 +12,7 @@ def add(client, **kw):
 def test_save_and_load_client(client):
     assert add(client).status_code == 201
     body = client.get("/clients/Arun").get_json()
-    assert body["program"] == "Muscle Gain (MG)"
+    assert body["program"] == "Muscle Gain (MG) – PPL"
     assert body["calories"] == 2450
     assert body["age"] == 30
 
