@@ -1,12 +1,21 @@
 """ACEest Fitness & Gym - Flask application."""
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
+import clients
 import programs
 from version import __version__
 
 
-def error(message, status):
-    return jsonify({"error": message}), status
+def error(message, status, details=None):
+    body = {"error": message}
+    if details:
+        body["details"] = details
+    return jsonify(body), status
+
+
+def json_body():
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else None
 
 
 def create_app(config=None):
@@ -36,6 +45,37 @@ def create_app(config=None):
         if not program:
             return error("Program not found", 404)
         return jsonify({"name": name, **program})
+
+    @app.get("/programs/<code>/calories")
+    def program_calories(code):
+        name, _ = programs.resolve(code)
+        if not name:
+            return error("Program not found", 404)
+        try:
+            weight = float(request.args.get("weight", ""))
+        except ValueError:
+            return error("weight (kg) query parameter is required", 400)
+        if weight <= 0:
+            return error("weight must be greater than 0", 400)
+        return jsonify({
+            "program": name,
+            "weight": weight,
+            "calories": programs.estimate_calories(weight, name),
+        })
+
+    @app.post("/clients")
+    def save_client():
+        payload = json_body()
+        if payload is None:
+            return error("JSON body required", 400)
+        clean, problems = clients.validate_client(payload)
+        if problems:
+            return error("Please fill client name and program.", 400, problems)
+        clean["calories"] = programs.estimate_calories(clean["weight"], clean["program"])
+        return jsonify({
+            "message": f"Client {clean['name']} saved successfully.",
+            "client": clean,
+        }), 201
 
     @app.get("/site-metrics")
     def site_metrics():
