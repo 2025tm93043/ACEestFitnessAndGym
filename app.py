@@ -158,6 +158,20 @@ def create_app(config=None):
         ).fetchall()
         return jsonify([dict(r) for r in rows])
 
+    @app.get("/clients/<name>/progress/chart.svg")
+    def progress_chart(name):
+        if not clients.get_client(name):
+            return error("Client not found", 404)
+        rows = db.get_db().execute(
+            "SELECT week, adherence FROM progress WHERE client_name=? ORDER BY id", (name,)
+        ).fetchall()
+        if not rows:
+            return error("No progress data available for this client", 404)
+        svg = charts.line_chart_svg(
+            f"Weekly Adherence Progress - {name}", [r["week"] for r in rows],
+            [r["adherence"] for r in rows], "Adherence (%)", ymin=0, ymax=100)
+        return Response(svg, mimetype="image/svg+xml")
+
     @app.get("/site-metrics")
     def site_metrics():
         return jsonify(programs.SITE_METRICS)

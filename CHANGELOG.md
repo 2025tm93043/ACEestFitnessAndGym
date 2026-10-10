@@ -28,3 +28,6 @@ All notable changes per application version (ported from the original ACEest des
 
 ## [2.1.2]
 - Maintenance release. The 2.1.2 source is byte-identical to 2.0.1 (no functional change); version bump only.
+
+## [2.2.1]
+- Per-client weekly adherence line chart: `GET /clients/<name>/progress/chart.svg`.
