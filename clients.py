@@ -36,5 +36,6 @@ def validate_client(payload):
         "age": parse_number(payload, "age", int, 0, 0, 120, errors),
         "weight": parse_number(payload, "weight", float, 0.0, 0, 500, errors),
         "adherence": parse_number(payload, "adherence", int, 0, 0, 100, errors),
+        "notes": str(payload.get("notes") or "").strip(),
     }
     return clean, errors

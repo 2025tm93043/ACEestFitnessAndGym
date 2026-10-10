@@ -12,3 +12,9 @@ All notable changes per application version (ported from the original ACEest des
 - Calorie estimation (weight x program factor): `GET /programs/<code>/calories?weight=`.
 - `POST /clients` validates and acknowledges a client (not yet persisted).
 - Program texts refreshed (Breakfast/Lunch/Dinner layout).
+
+## [1.1.2]
+- In-memory client list with coach notes (`GET /clients`).
+- CSV export (`GET /clients/export.csv`).
+- Progress chart: JSON data (`/clients/chart-data`) and SVG (`/clients/chart.svg`) - a
+  dependency-free replacement for the matplotlib canvas.
