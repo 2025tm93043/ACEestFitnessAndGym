@@ -2,22 +2,13 @@ import charts
 
 
 def add(client, **kw):
-    body = {"name": "Arun", "program": "FL", "weight": 80, "adherence": 60, "notes": "ok"}
+    body = {"name": "Arun", "program": "FL", "weight": 80}
     body.update(kw)
     return client.post("/clients", json=body)
 
 
-def test_clients_are_stored_in_memory(client):
-    assert client.get("/clients").get_json() == []
-    add(client)
-    add(client, name="Bala", program="MG", adherence=90)
-    names = [c["name"] for c in client.get("/clients").get_json()]
-    assert names == ["Arun", "Bala"]
-
-
-def test_notes_are_kept(client):
-    add(client, notes="knee pain")
-    assert client.get("/clients").get_json()[0]["notes"] == "knee pain"
+def progress(client, name, adherence):
+    return client.post(f"/clients/{name}/progress", json={"adherence": adherence})
 
 
 def test_export_csv(client):
@@ -26,17 +17,20 @@ def test_export_csv(client):
     assert res.status_code == 200
     assert res.mimetype == "text/csv"
     lines = res.get_data(as_text=True).strip().splitlines()
-    assert lines[0] == "Name,Age,Weight,Program,Adherence,Notes"
-    assert lines[1].startswith("Arun,0,80.0,Fat Loss (FL),60")
+    assert lines[0] == "Name,Age,Weight,Program,Calories"
+    assert lines[1] == "Arun,0,80.0,Fat Loss (FL),1760"
 
 
 def test_export_csv_without_clients(client):
     assert client.get("/clients/export.csv").status_code == 404
 
 
-def test_chart_data(client):
+def test_chart_data_uses_latest_progress(client):
     add(client)
-    add(client, name="Bala", adherence=90)
+    add(client, name="Bala")
+    progress(client, "Arun", 40)
+    progress(client, "Arun", 60)
+    progress(client, "Bala", 90)
     assert client.get("/clients/chart-data").get_json() == {
         "labels": ["Arun", "Bala"], "adherence": [60, 90]}
 
@@ -44,6 +38,7 @@ def test_chart_data(client):
 def test_chart_svg(client):
     assert client.get("/clients/chart.svg").status_code == 404
     add(client)
+    progress(client, "Arun", 50)
     res = client.get("/clients/chart.svg")
     assert res.mimetype == "image/svg+xml"
     assert "<svg" in res.get_data(as_text=True)

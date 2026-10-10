@@ -18,3 +18,10 @@ All notable changes per application version (ported from the original ACEest des
 - CSV export (`GET /clients/export.csv`).
 - Progress chart: JSON data (`/clients/chart-data`) and SVG (`/clients/chart.svg`) - a
   dependency-free replacement for the matplotlib canvas.
+
+## [2.0.1]
+- SQLite persistence (`aceest_fitness.db`, override with `ACEEST_DB`): `clients` and `progress` tables.
+- `POST /clients` now upserts by unique name; `GET /clients/<name>` loads a client.
+- Weekly progress log: `POST|GET /clients/<name>/progress`.
+- CSV export and progress chart now read from the database (adherence comes from the progress log).
+- Notes / per-client adherence fields removed from the client record (as in the desktop release).

@@ -29,14 +29,13 @@ def test_calories_endpoint_validation(client):
 
 def test_save_client_ok(client):
     res = client.post("/clients", json={
-        "name": "Arun", "program": "FL", "age": 28, "weight": 82, "adherence": 75,
+        "name": "Arun", "program": "FL", "age": 28, "weight": 82,
     })
     body = res.get_json()
     assert res.status_code == 201
-    assert body["message"] == "Client Arun saved successfully."
+    assert body["message"] == "Client data saved"
     assert body["client"]["program"] == "Fat Loss (FL)"
     assert body["client"]["calories"] == 1804
-    assert body["client"]["adherence"] == 75
 
 
 def test_save_client_requires_name_and_program(client):
@@ -48,7 +47,7 @@ def test_save_client_requires_name_and_program(client):
 
 def test_save_client_rejects_bad_values(client):
     res = client.post("/clients", json={
-        "name": "X", "program": "FL", "adherence": 150, "age": "old"})
+        "name": "X", "program": "FL", "weight": 900, "age": "old"})
     assert res.status_code == 400
     assert len(res.get_json()["details"]) == 2
 
