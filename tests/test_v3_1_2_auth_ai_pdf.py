@@ -72,7 +72,7 @@ def test_admin_password_stored_hashed(app):
 # ---------- membership expiry ----------
 def test_membership_expiry_saved(client):
     add(client)
-    assert client.get("/clients/Arun").get_json()["membership_expiry"] == "2027-01-31"
+    assert client.get("/clients/Arun").get_json()["membership_end"] == "2027-01-31"
 
 
 def test_membership_expiry_validated(client):

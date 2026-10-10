@@ -3,7 +3,8 @@ from datetime import date
 
 from clients import parse_number
 
-WORKOUT_TYPES = ["Strength", "Hypertrophy", "Conditioning", "Mixed", "Mobility"]
+WORKOUT_TYPES = [
+    "Strength", "Hypertrophy", "Conditioning", "Cardio", "Mixed", "Mobility"]
 
 
 def _iso_date(payload, errors):

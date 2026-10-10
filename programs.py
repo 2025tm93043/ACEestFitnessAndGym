@@ -84,6 +84,12 @@ PROGRAMS = {
     },
 }
 
+PROGRAM_TEMPLATES = {
+    "Fat Loss": ["Full Body HIIT", "Circuit Training", "Cardio + Weights"],
+    "Muscle Gain": ["Push/Pull/Legs", "Upper/Lower Split", "Full Body Strength"],
+    "Beginner": ["Full Body 3x/week", "Light Strength + Mobility"],
+}
+
 SITE_METRICS = {
     "capacity_users": 150,
     "area_sqft": 10000,

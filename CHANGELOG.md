@@ -51,3 +51,10 @@ All notable changes per application version (ported from the original ACEest des
 - Membership expiry date on clients.
 - "Generate AI Program": `POST /clients/<name>/ai-program` (beginner / intermediate / advanced).
 - PDF client report: `GET /clients/<name>/report.pdf` (fpdf2).
+
+## [3.2.4]
+- Membership billing: `membership_status` + `membership_end` (replaces `membership_expiry`, which stays
+  accepted as an alias and is migrated automatically); `GET /clients/<name>/membership` with renewal date.
+- Template-based "Generate AI Program": `POST /clients/<name>/generate-program` stores the chosen program.
+- PDF report now lists every client field (id, calories, targets, membership).
+- New workout type: Cardio.

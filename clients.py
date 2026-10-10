@@ -5,6 +5,9 @@ import programs
 from db import get_db
 
 
+MEMBERSHIP_STATUSES = ["Active", "Inactive", "Expired"]
+
+
 def parse_number(payload, field, cast, default, minimum, maximum, errors):
     raw = payload.get(field)
     if raw in (None, ""):
@@ -37,12 +40,17 @@ def validate_client(payload):
         value = parse_number(payload, field, cast, None, 0, maximum, errors)
         return value if value else None  # 0 / missing -> NULL, like the desktop app
 
-    expiry = str(payload.get("membership_expiry") or "").strip()
-    if expiry:
+    # "membership_expiry" is accepted as a legacy alias for "membership_end" (v3.1.2)
+    end = str(payload.get("membership_end") or payload.get("membership_expiry") or "").strip()
+    if end:
         try:
-            expiry = date.fromisoformat(expiry).isoformat()
+            end = date.fromisoformat(end).isoformat()
         except ValueError:
-            errors.append("membership_expiry must be YYYY-MM-DD")
+            errors.append("membership_end must be YYYY-MM-DD")
+
+    status = str(payload.get("membership_status") or "Active").strip().capitalize()
+    if status not in MEMBERSHIP_STATUSES:
+        errors.append("membership_status must be one of: " + ", ".join(MEMBERSHIP_STATUSES))
 
     clean = {
         "name": name,
@@ -52,7 +60,8 @@ def validate_client(payload):
         "weight": positive("weight", float, 500),
         "target_weight": positive("target_weight", float, 500),
         "target_adherence": positive("target_adherence", int, 100),
-        "membership_expiry": expiry or None,
+        "membership_status": status,
+        "membership_end": end or None,
     }
     return clean, errors
 
@@ -78,10 +87,22 @@ def save_client(clean):
     db = get_db()
     db.execute(
         "INSERT OR REPLACE INTO clients (name, age, height, weight, program, calories, "
-        "target_weight, target_adherence, membership_expiry) VALUES (:name, :age, :height, "
-        ":weight, :program, :calories, :target_weight, :target_adherence, "
-        ":membership_expiry)",
+        "target_weight, target_adherence, membership_status, membership_end) VALUES (:name, "
+        ":age, :height, :weight, :program, :calories, :target_weight, :target_adherence, "
+        ":membership_status, :membership_end)",
         clean,
     )
     db.commit()
     return get_client(clean["name"])
+
+
+def membership_info(client):
+    """Membership status, renewal date and whether the end date has passed."""
+    end = client.get("membership_end")
+    expired = bool(end) and date.fromisoformat(end) < date.today()
+    return {
+        "client": client["name"],
+        "status": "Expired" if expired else (client.get("membership_status") or "Active"),
+        "renewal_date": end or "N/A",
+        "expired": expired,
+    }
