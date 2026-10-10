@@ -1,11 +1,14 @@
 """ACEest Fitness & Gym - Flask application."""
 import csv
 import io
+import os
+from datetime import datetime
 
 from flask import Flask, Response, jsonify, request
 
 import charts
 import clients
+import db
 import programs
 from version import __version__
 
@@ -24,11 +27,10 @@ def json_body():
 
 def create_app(config=None):
     app = Flask(__name__)
+    app.config["DATABASE"] = os.environ.get("ACEEST_DB", "aceest_fitness.db")
     if config:
         app.config.update(config)
-
-    app.config["CLIENT_STORE"] = []  # in-memory client list (v1.1.2)
-    store = app.config["CLIENT_STORE"]
+    db.init_app(app)
 
     # --- ROUTES-BEGIN ---
     @app.get("/")
@@ -70,6 +72,7 @@ def create_app(config=None):
             "calories": programs.estimate_calories(weight, name),
         })
 
+    # ---------- clients (SQLite) ----------
     @app.post("/clients")
     def save_client():
         payload = json_body()
@@ -77,43 +80,83 @@ def create_app(config=None):
             return error("JSON body required", 400)
         clean, problems = clients.validate_client(payload)
         if problems:
-            return error("Please fill client name and program.", 400, problems)
-        clean["calories"] = programs.estimate_calories(clean["weight"], clean["program"])
-        store.append(clean)
-        return jsonify({
-            "message": f"Client {clean['name']} saved successfully.",
-            "client": clean,
-        }), 201
+            return error("Name and Program required", 400, problems)
+        return jsonify({"message": "Client data saved",
+                        "client": clients.save_client(clean)}), 201
 
     @app.get("/clients")
     def list_clients():
-        return jsonify(store)
+        return jsonify(clients.list_clients())
 
     @app.get("/clients/export.csv")
     def export_csv():
-        if not store:
+        rows = clients.list_clients()
+        if not rows:
             return error("No clients to export.", 404)
         out = io.StringIO()
         writer = csv.writer(out)
-        writer.writerow(["Name", "Age", "Weight", "Program", "Adherence", "Notes"])
-        for c in store:
-            writer.writerow([c["name"], c["age"], c["weight"], c["program"],
-                             c["adherence"], c["notes"]])
+        writer.writerow(["Name", "Age", "Weight", "Program", "Calories"])
+        for c in rows:
+            writer.writerow([c["name"], c["age"], c["weight"], c["program"], c["calories"]])
         return Response(out.getvalue(), mimetype="text/csv", headers={
             "Content-Disposition": "attachment; filename=clients.csv"})
 
+    def latest_adherence():
+        rows = db.get_db().execute(
+            "SELECT client_name, adherence FROM progress WHERE id IN "
+            "(SELECT MAX(id) FROM progress GROUP BY client_name) ORDER BY client_name"
+        ).fetchall()
+        return [r["client_name"] for r in rows], [r["adherence"] for r in rows]
+
     @app.get("/clients/chart-data")
     def chart_data():
-        return jsonify({"labels": [c["name"] for c in store],
-                        "adherence": [c["adherence"] for c in store]})
+        labels, values = latest_adherence()
+        return jsonify({"labels": labels, "adherence": values})
 
     @app.get("/clients/chart.svg")
     def chart_svg():
-        if not store:
-            return error("No clients to chart.", 404)
-        svg = charts.bar_chart_svg("Client Progress", [c["name"] for c in store],
-                                   [c["adherence"] for c in store], "Adherence %")
+        labels, values = latest_adherence()
+        if not labels:
+            return error("No progress data to chart.", 404)
+        svg = charts.bar_chart_svg("Client Progress", labels, values, "Adherence %")
         return Response(svg, mimetype="image/svg+xml")
+
+    @app.get("/clients/<name>")
+    def load_client(name):
+        client = clients.get_client(name)
+        if not client:
+            return error("Client not found", 404)
+        return jsonify(client)
+
+    @app.post("/clients/<name>/progress")
+    def save_progress(name):
+        if not clients.get_client(name):
+            return error("Client not found", 404)
+        payload = json_body()
+        if payload is None:
+            return error("JSON body required", 400)
+        problems = []
+        adherence = clients.parse_number(payload, "adherence", int, None, 0, 100, problems)
+        if adherence is None and not problems:
+            problems.append("adherence is required")
+        if problems:
+            return error("Invalid progress", 400, problems)
+        week = datetime.now().strftime("Week %U - %Y")
+        conn = db.get_db()
+        conn.execute("INSERT INTO progress (client_name, week, adherence) VALUES (?, ?, ?)",
+                     (name, week, adherence))
+        conn.commit()
+        return jsonify({"message": "Weekly progress logged", "client": name,
+                        "week": week, "adherence": adherence}), 201
+
+    @app.get("/clients/<name>/progress")
+    def get_progress(name):
+        if not clients.get_client(name):
+            return error("Client not found", 404)
+        rows = db.get_db().execute(
+            "SELECT week, adherence FROM progress WHERE client_name=? ORDER BY id", (name,)
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
 
     @app.get("/site-metrics")
     def site_metrics():

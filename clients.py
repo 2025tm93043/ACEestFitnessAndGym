@@ -1,5 +1,6 @@
-"""Client input validation (ACEest v1.1)."""
+"""Client validation and persistence helpers."""
 import programs
+from db import get_db
 
 
 def parse_number(payload, field, cast, default, minimum, maximum, errors):
@@ -35,7 +36,33 @@ def validate_client(payload):
         "program": program_name,
         "age": parse_number(payload, "age", int, 0, 0, 120, errors),
         "weight": parse_number(payload, "weight", float, 0.0, 0, 500, errors),
-        "adherence": parse_number(payload, "adherence", int, 0, 0, 100, errors),
-        "notes": str(payload.get("notes") or "").strip(),
     }
     return clean, errors
+
+
+def row_to_dict(row):
+    return dict(row) if row is not None else None
+
+
+def get_client(name):
+    row = get_db().execute("SELECT * FROM clients WHERE name=?", (name,)).fetchone()
+    return row_to_dict(row)
+
+
+def list_clients():
+    rows = get_db().execute("SELECT * FROM clients ORDER BY name").fetchall()
+    return [dict(r) for r in rows]
+
+
+def save_client(clean):
+    """INSERT OR REPLACE a client (upsert by unique name) and return the stored row."""
+    clean = dict(clean)
+    clean["calories"] = programs.estimate_calories(clean["weight"], clean["program"])
+    db = get_db()
+    db.execute(
+        "INSERT OR REPLACE INTO clients (name, age, weight, program, calories) "
+        "VALUES (:name, :age, :weight, :program, :calories)",
+        clean,
+    )
+    db.commit()
+    return get_client(clean["name"])
