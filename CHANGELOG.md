@@ -43,3 +43,11 @@ All notable changes per application version (ported from the original ACEest des
 
 ## [3.0.1]
 - Maintenance release. The 3.0.1 source is byte-identical to 2.2.4 (no functional change); version bump only.
+
+## [3.1.2]
+- Role-based login: `POST /login` returns a signed bearer token, `GET /me`; every other endpoint now
+  requires `Authorization: Bearer <token>` (disable with `REQUIRE_AUTH=False` for local experiments).
+  Default user `admin` (password from `ACEEST_ADMIN_PASSWORD`, default `admin`, stored hashed).
+- Membership expiry date on clients.
+- "Generate AI Program": `POST /clients/<name>/ai-program` (beginner / intermediate / advanced).
+- PDF client report: `GET /clients/<name>/report.pdf` (fpdf2).

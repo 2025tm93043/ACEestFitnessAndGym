@@ -30,7 +30,7 @@ def test_load_unknown_client(client):
 
 
 def test_data_survives_app_restart(tmp_path):
-    cfg = {"TESTING": True, "DATABASE": str(tmp_path / "x.db")}
+    cfg = {"TESTING": True, "REQUIRE_AUTH": False, "DATABASE": str(tmp_path / "x.db")}
     create_app(cfg).test_client().post(
         "/clients", json={"name": "Z", "program": "FL", "weight": 50})
     again = create_app(cfg).test_client()

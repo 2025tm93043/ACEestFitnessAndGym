@@ -4,12 +4,16 @@ import io
 import os
 from datetime import datetime
 
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, g, jsonify, request
+from werkzeug.security import check_password_hash
 
+import ai_program
+import auth
 import charts
 import clients
 import db
 import programs
+import reports
 import workouts
 from version import __version__
 
@@ -29,9 +33,26 @@ def json_body():
 def create_app(config=None):
     app = Flask(__name__)
     app.config["DATABASE"] = os.environ.get("ACEEST_DB", "aceest_fitness.db")
+    app.config["SECRET_KEY"] = os.environ.get("ACEEST_SECRET_KEY", "dev-only-change-me")
+    app.config["REQUIRE_AUTH"] = True
     if config:
         app.config.update(config)
     db.init_app(app)
+
+    public_endpoints = {"index", "health", "login"}
+
+    @app.before_request
+    def require_login():
+        if (not app.config["REQUIRE_AUTH"] or request.endpoint is None
+                or request.endpoint in public_endpoints):
+            return None
+        header = request.headers.get("Authorization", "")
+        token = header[7:] if header.startswith("Bearer ") else ""
+        user = auth.verify_token(app.config["SECRET_KEY"], token)
+        if not user:
+            return error("Authentication required", 401)
+        g.user = user
+        return None
 
     # --- ROUTES-BEGIN ---
     @app.get("/")
@@ -41,6 +62,22 @@ def create_app(config=None):
     @app.get("/health")
     def health():
         return jsonify({"status": "ok", "version": __version__})
+
+    @app.post("/login")
+    def login():
+        payload = json_body() or {}
+        username = str(payload.get("username") or "").strip()
+        password = str(payload.get("password") or "").strip()
+        row = db.get_db().execute(
+            "SELECT password, role FROM users WHERE username=?", (username,)).fetchone()
+        if not row or not check_password_hash(row["password"], password):
+            return error("Invalid credentials", 401)
+        token = auth.make_token(app.config["SECRET_KEY"], username, row["role"])
+        return jsonify({"token": token, "username": username, "role": row["role"]})
+
+    @app.get("/me")
+    def me():
+        return jsonify(g.user)
 
     @app.get("/programs")
     def list_programs():
@@ -158,6 +195,27 @@ def create_app(config=None):
             return error("Enter valid height and weight first", 400)
         info = workouts.bmi_info(client["height"], client["weight"])
         return jsonify({"client": name, **info})
+
+    @app.post("/clients/<name>/ai-program")
+    def ai_program_route(name):
+        client = clients.get_client(name)
+        if not client:
+            return error("Client not found", 404)
+        payload = json_body() or {}
+        experience = str(payload.get("experience") or "").strip().lower()
+        if experience not in ai_program.LEVELS:
+            return error("Invalid experience level (beginner/intermediate/advanced)", 400)
+        focus, plan = ai_program.generate(client["program"], experience, payload.get("seed"))
+        return jsonify({"client": name, "experience": experience, "focus": focus,
+                        "plan": plan})
+
+    @app.get("/clients/<name>/report.pdf")
+    def client_report(name):
+        client = clients.get_client(name)
+        if not client:
+            return error("Client not found", 404)
+        return Response(reports.client_report_pdf(client), mimetype="application/pdf", headers={
+            "Content-Disposition": f"attachment; filename={name}_report.pdf"})
 
     @app.post("/clients/<name>/workouts")
     def log_workout(name):

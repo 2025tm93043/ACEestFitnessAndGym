@@ -1,4 +1,6 @@
 """Client validation and persistence helpers."""
+from datetime import date
+
 import programs
 from db import get_db
 
@@ -35,6 +37,13 @@ def validate_client(payload):
         value = parse_number(payload, field, cast, None, 0, maximum, errors)
         return value if value else None  # 0 / missing -> NULL, like the desktop app
 
+    expiry = str(payload.get("membership_expiry") or "").strip()
+    if expiry:
+        try:
+            expiry = date.fromisoformat(expiry).isoformat()
+        except ValueError:
+            errors.append("membership_expiry must be YYYY-MM-DD")
+
     clean = {
         "name": name,
         "program": program_name,
@@ -43,6 +52,7 @@ def validate_client(payload):
         "weight": positive("weight", float, 500),
         "target_weight": positive("target_weight", float, 500),
         "target_adherence": positive("target_adherence", int, 100),
+        "membership_expiry": expiry or None,
     }
     return clean, errors
 
@@ -68,8 +78,9 @@ def save_client(clean):
     db = get_db()
     db.execute(
         "INSERT OR REPLACE INTO clients (name, age, height, weight, program, calories, "
-        "target_weight, target_adherence) VALUES (:name, :age, :height, :weight, :program, "
-        ":calories, :target_weight, :target_adherence)",
+        "target_weight, target_adherence, membership_expiry) VALUES (:name, :age, :height, "
+        ":weight, :program, :calories, :target_weight, :target_adherence, "
+        ":membership_expiry)",
         clean,
     )
     db.commit()

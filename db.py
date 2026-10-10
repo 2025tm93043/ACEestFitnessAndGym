@@ -1,9 +1,19 @@
 """SQLite persistence layer (introduced in ACEest v2.0.1)."""
+import os
 import sqlite3
 
 from flask import current_app, g
+from werkzeug.security import generate_password_hash
 
 SCHEMA = [
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT,
+        role TEXT
+    )
+    """,
     """
     CREATE TABLE IF NOT EXISTS clients (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -14,7 +24,8 @@ SCHEMA = [
         program TEXT,
         calories INTEGER,
         target_weight REAL,
-        target_adherence INTEGER
+        target_adherence INTEGER,
+        membership_expiry TEXT
     )
     """,
     """
@@ -63,6 +74,7 @@ MIGRATIONS = {
         "height": "REAL",
         "target_weight": "REAL",
         "target_adherence": "INTEGER",
+        "membership_expiry": "TEXT",
     },
 }
 
@@ -80,8 +92,17 @@ def init_db(path):
         conn.execute(statement)
     for table, columns in MIGRATIONS.items():
         ensure_columns(conn, table, columns)
+    seed_admin(conn)
     conn.commit()
     conn.close()
+
+
+def seed_admin(conn):
+    """Create the default admin user (password from ACEEST_ADMIN_PASSWORD, default 'admin')."""
+    password = os.environ.get("ACEEST_ADMIN_PASSWORD", "admin")
+    conn.execute(
+        "INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)",
+        ("admin", generate_password_hash(password), "Admin"))
 
 
 def get_db():

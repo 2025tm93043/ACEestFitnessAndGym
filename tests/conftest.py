@@ -9,5 +9,15 @@ def app(tmp_path):
 
 
 @pytest.fixture
-def client(app):
+def anon_client(app):
+    """Client without credentials."""
     return app.test_client()
+
+
+@pytest.fixture
+def client(app):
+    """Client already logged in as the default admin user."""
+    c = app.test_client()
+    token = c.post("/login", json={"username": "admin", "password": "admin"}).get_json()["token"]
+    c.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+    return c
