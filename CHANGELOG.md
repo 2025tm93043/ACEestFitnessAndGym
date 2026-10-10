@@ -25,3 +25,6 @@ All notable changes per application version (ported from the original ACEest des
 - Weekly progress log: `POST|GET /clients/<name>/progress`.
 - CSV export and progress chart now read from the database (adherence comes from the progress log).
 - Notes / per-client adherence fields removed from the client record (as in the desktop release).
+
+## [2.1.2]
+- Maintenance release. The 2.1.2 source is byte-identical to 2.0.1 (no functional change); version bump only.
