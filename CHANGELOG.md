@@ -40,3 +40,6 @@ All notable changes per application version (ported from the original ACEest des
 - Body metrics (weight/waist/bodyfat) + weight trend chart (`/clients/<name>/metrics...`).
 - BMI & risk info: `GET /clients/<name>/bmi`.
 - Database schema is migrated in place with `ALTER TABLE` (the desktop app dropped the old table).
+
+## [3.0.1]
+- Maintenance release. The 3.0.1 source is byte-identical to 2.2.4 (no functional change); version bump only.
