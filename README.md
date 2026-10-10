@@ -89,18 +89,30 @@ Triggered on every **push** and **pull_request**.
    *inside the container*, then smoke-test the runtime image by calling `/health`.
 
 ### Jenkins (`Jenkinsfile`)
-A declarative pipeline that gives a second, independent validation in a controlled build environment:
-clean workspace -> checkout from GitHub -> create venv & install -> lint -> Pytest (JUnit report published)
--> `docker build` (runtime + test targets) -> run tests in the container -> cleanup.
 
-Jenkins setup:
-1. Install Jenkins with the *Git*, *Pipeline* and *JUnit* plugins; the agent needs `git`, `python3-venv`, `docker`
-   (add the `jenkins` user to the `docker` group).
-2. *New Item -> Pipeline*; Definition **Pipeline script from SCM**, SCM **Git**, your repo URL, branch `*/main`,
-   script path `Jenkinsfile`.
-3. Trigger: add a GitHub webhook (`http://<jenkins>/github-webhook/`) with *GitHub hook trigger*, or rely on the
-   built-in `pollSCM` fallback.
-4. *Build Now* - the build must finish green with the test report attached.
+Jenkins is the primary BUILD phase and acts as a second, independent quality gate. It runs on a
+Jenkins server that builds from a clean workspace, so a green GitHub Actions run is confirmed in an
+environment we control.
+
+**Job configuration** (existing Jenkins server, nothing is installed by this project):
+
+- Job type: **Pipeline**, definition **Pipeline script from SCM**
+- SCM: **Git**, repository `https://github.com/2025tm93043/ACEestFitnessAndGym.git`, branch `*/main`
+- Script path: `Jenkinsfile`
+- Trigger: **Poll SCM**. Jenkins checks GitHub on a schedule and starts a build automatically
+  whenever a new commit (for example a merged pull request) appears on `main`.
+
+**What each build does:**
+
+1. Clean the workspace.
+2. Pull the latest code from GitHub.
+3. Create a fresh Python virtual environment and install dependencies.
+4. Compile check and lint (`python -m compileall`, `flake8`).
+5. Run the Pytest suite and publish the JUnit report.
+6. Build the Docker images and run the tests inside the container.
+
+A build is green only if every stage succeeds. A failing stage stops the build and the console
+output shows the error.
 
 ## API summary
 
