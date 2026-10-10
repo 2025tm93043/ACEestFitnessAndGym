@@ -2,14 +2,15 @@ import programs
 
 
 def test_programs_have_calorie_factors():
-    assert programs.PROGRAMS["Fat Loss (FL)"]["calorie_factor"] == 22
-    assert programs.PROGRAMS["Muscle Gain (MG)"]["calorie_factor"] == 35
+    assert programs.PROGRAMS["Fat Loss (FL) – 3 day"]["calorie_factor"] == 22
+    assert programs.PROGRAMS["Fat Loss (FL) – 5 day"]["calorie_factor"] == 24
+    assert programs.PROGRAMS["Muscle Gain (MG) – PPL"]["calorie_factor"] == 35
     assert programs.PROGRAMS["Beginner (BG)"]["calorie_factor"] == 26
 
 
 def test_estimate_calories():
-    assert programs.estimate_calories(70, "Fat Loss (FL)") == 1540
-    assert programs.estimate_calories(80.5, "Muscle Gain (MG)") == 2817
+    assert programs.estimate_calories(70, "Fat Loss (FL) – 3 day") == 1540
+    assert programs.estimate_calories(80.5, "Muscle Gain (MG) – PPL") == 2817
     assert programs.estimate_calories(0, "Beginner (BG)") is None
     assert programs.estimate_calories(70, "Unknown") is None
 
@@ -34,7 +35,7 @@ def test_save_client_ok(client):
     body = res.get_json()
     assert res.status_code == 201
     assert body["message"] == "Client data saved"
-    assert body["client"]["program"] == "Fat Loss (FL)"
+    assert body["client"]["program"] == "Fat Loss (FL) – 3 day"
     assert body["client"]["calories"] == 1804
 
 

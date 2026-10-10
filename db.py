@@ -9,9 +9,12 @@ SCHEMA = [
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE,
         age INTEGER,
+        height REAL,
         weight REAL,
         program TEXT,
-        calories INTEGER
+        calories INTEGER,
+        target_weight REAL,
+        target_adherence INTEGER
     )
     """,
     """
@@ -22,10 +25,46 @@ SCHEMA = [
         adherence INTEGER
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS workouts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_name TEXT,
+        date TEXT,
+        workout_type TEXT,
+        duration_min INTEGER,
+        notes TEXT
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS exercises (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workout_id INTEGER,
+        name TEXT,
+        sets INTEGER,
+        reps INTEGER,
+        weight REAL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_name TEXT,
+        date TEXT,
+        weight REAL,
+        waist REAL,
+        bodyfat REAL
+    )
+    """,
 ]
 
 # Columns added after a table's first release: {table: {column: ddl}}.
-MIGRATIONS = {}
+MIGRATIONS = {
+    "clients": {
+        "height": "REAL",
+        "target_weight": "REAL",
+        "target_adherence": "INTEGER",
+    },
+}
 
 
 def ensure_columns(conn, table, columns):

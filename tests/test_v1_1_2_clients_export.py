@@ -18,7 +18,7 @@ def test_export_csv(client):
     assert res.mimetype == "text/csv"
     lines = res.get_data(as_text=True).strip().splitlines()
     assert lines[0] == "Name,Age,Weight,Program,Calories"
-    assert lines[1] == "Arun,0,80.0,Fat Loss (FL),1760"
+    assert lines[1] == "Arun,,80.0,Fat Loss (FL) – 3 day,1760"
 
 
 def test_export_csv_without_clients(client):

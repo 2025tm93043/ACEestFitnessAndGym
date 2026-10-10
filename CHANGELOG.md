@@ -31,3 +31,12 @@ All notable changes per application version (ported from the original ACEest des
 
 ## [2.2.1]
 - Per-client weekly adherence line chart: `GET /clients/<name>/progress/chart.svg`.
+
+## [2.2.4]
+- Program catalogue expanded to four programs: FL 3-day, FL 5-day, MG PPL, Beginner (`FL`/`MG` kept as aliases).
+- Client profile gains height, target weight, target adherence; all optional.
+- Client summary block: program notes, goals, weeks logged, average adherence, last body metrics.
+- Workout logging with optional exercise (`POST|GET /clients/<name>/workouts`).
+- Body metrics (weight/waist/bodyfat) + weight trend chart (`/clients/<name>/metrics...`).
+- BMI & risk info: `GET /clients/<name>/bmi`.
+- Database schema is migrated in place with `ALTER TABLE` (the desktop app dropped the old table).

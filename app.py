@@ -10,6 +10,7 @@ import charts
 import clients
 import db
 import programs
+import workouts
 from version import __version__
 
 
@@ -126,7 +127,120 @@ def create_app(config=None):
         client = clients.get_client(name)
         if not client:
             return error("Client not found", 404)
+        conn = db.get_db()
+        weeks, avg = conn.execute(
+            "SELECT COUNT(*), AVG(adherence) FROM progress WHERE client_name=?", (name,)
+        ).fetchone()
+        last = conn.execute(
+            "SELECT date, weight, waist, bodyfat FROM metrics WHERE client_name=? "
+            "ORDER BY date DESC, id DESC LIMIT 1", (name,)).fetchone()
+        goals = []
+        if client["target_weight"]:
+            goals.append(f"Target Weight: {client['target_weight']} kg")
+        if client["target_adherence"]:
+            goals.append(f"Target Adherence: {client['target_adherence']}%")
+        _, program = programs.resolve(client["program"])
+        client["summary"] = {
+            "program_notes": program["description"] if program else "",
+            "goals": "; ".join(goals) if goals else "None",
+            "weeks_logged": weeks,
+            "average_adherence": round(avg, 1) if avg is not None else 0,
+            "last_metrics": dict(last) if last else None,
+        }
         return jsonify(client)
+
+    @app.get("/clients/<name>/bmi")
+    def client_bmi(name):
+        client = clients.get_client(name)
+        if not client:
+            return error("Client not found", 404)
+        if not client["height"] or not client["weight"]:
+            return error("Enter valid height and weight first", 400)
+        info = workouts.bmi_info(client["height"], client["weight"])
+        return jsonify({"client": name, **info})
+
+    @app.post("/clients/<name>/workouts")
+    def log_workout(name):
+        if not clients.get_client(name):
+            return error("Client not found", 404)
+        payload = json_body()
+        if payload is None:
+            return error("JSON body required", 400)
+        clean, problems = workouts.validate_workout(payload)
+        if problems:
+            return error("Invalid workout", 400, problems)
+        conn = db.get_db()
+        cur = conn.execute(
+            "INSERT INTO workouts (client_name, date, workout_type, duration_min, notes) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (name, clean["date"], clean["workout_type"], clean["duration_min"], clean["notes"]))
+        ex = clean["exercise"]
+        if ex:
+            conn.execute(
+                "INSERT INTO exercises (workout_id, name, sets, reps, weight) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (cur.lastrowid, ex["name"], ex["sets"], ex["reps"], ex["weight"]))
+        conn.commit()
+        return jsonify({"message": "Workout logged successfully", "id": cur.lastrowid}), 201
+
+    @app.get("/clients/<name>/workouts")
+    def workout_history(name):
+        if not clients.get_client(name):
+            return error("Client not found", 404)
+        conn = db.get_db()
+        rows = conn.execute(
+            "SELECT id, date, workout_type, duration_min, notes FROM workouts "
+            "WHERE client_name=? ORDER BY date DESC, id DESC", (name,)).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["exercises"] = [dict(e) for e in conn.execute(
+                "SELECT name, sets, reps, weight FROM exercises WHERE workout_id=? "
+                "ORDER BY id", (row["id"],))]
+            result.append(item)
+        return jsonify(result)
+
+    @app.post("/clients/<name>/metrics")
+    def log_metrics(name):
+        if not clients.get_client(name):
+            return error("Client not found", 404)
+        payload = json_body()
+        if payload is None:
+            return error("JSON body required", 400)
+        clean, problems = workouts.validate_metrics(payload)
+        if problems:
+            return error("Invalid metrics", 400, problems)
+        conn = db.get_db()
+        conn.execute(
+            "INSERT INTO metrics (client_name, date, weight, waist, bodyfat) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (name, clean["date"], clean["weight"], clean["waist"], clean["bodyfat"]))
+        conn.commit()
+        return jsonify({"message": "Metrics logged successfully", **clean}), 201
+
+    @app.get("/clients/<name>/metrics")
+    def metrics_history(name):
+        if not clients.get_client(name):
+            return error("Client not found", 404)
+        rows = db.get_db().execute(
+            "SELECT date, weight, waist, bodyfat FROM metrics WHERE client_name=? "
+            "ORDER BY date, id", (name,)).fetchall()
+        return jsonify([dict(r) for r in rows])
+
+    @app.get("/clients/<name>/metrics/weight-chart.svg")
+    def weight_chart(name):
+        if not clients.get_client(name):
+            return error("Client not found", 404)
+        rows = db.get_db().execute(
+            "SELECT date, weight FROM metrics WHERE client_name=? AND weight IS NOT NULL "
+            "ORDER BY date, id", (name,)).fetchall()
+        if not rows:
+            return error("No weight metrics available for this client", 404)
+        values = [r["weight"] for r in rows]
+        svg = charts.line_chart_svg(
+            f"Weight Trend - {name}", [r["date"] for r in rows], values, "Weight (kg)",
+            ymin=min(values) - 2, ymax=max(values) + 2, color="#ffa500")
+        return Response(svg, mimetype="image/svg+xml")
 
     @app.post("/clients/<name>/progress")
     def save_progress(name):
