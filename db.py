@@ -25,7 +25,8 @@ SCHEMA = [
         calories INTEGER,
         target_weight REAL,
         target_adherence INTEGER,
-        membership_expiry TEXT
+        membership_status TEXT DEFAULT 'Active',
+        membership_end TEXT
     )
     """,
     """
@@ -74,7 +75,8 @@ MIGRATIONS = {
         "height": "REAL",
         "target_weight": "REAL",
         "target_adherence": "INTEGER",
-        "membership_expiry": "TEXT",
+        "membership_status": "TEXT DEFAULT 'Active'",
+        "membership_end": "TEXT",
     },
 }
 
@@ -92,9 +94,20 @@ def init_db(path):
         conn.execute(statement)
     for table, columns in MIGRATIONS.items():
         ensure_columns(conn, table, columns)
+    migrate_membership(conn)
     seed_admin(conn)
     conn.commit()
     conn.close()
+
+
+def migrate_membership(conn):
+    """3.2.4 renamed membership_expiry -> membership_end and added membership_status."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(clients)")}
+    if "membership_expiry" in cols:
+        conn.execute("UPDATE clients SET membership_end = membership_expiry "
+                     "WHERE membership_end IS NULL AND membership_expiry IS NOT NULL")
+    conn.execute("UPDATE clients SET membership_status = 'Active' "
+                 "WHERE membership_status IS NULL")
 
 
 def seed_admin(conn):

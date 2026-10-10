@@ -2,6 +2,7 @@
 import csv
 import io
 import os
+import random
 from datetime import datetime
 
 from flask import Flask, Response, g, jsonify, request
@@ -183,6 +184,7 @@ def create_app(config=None):
             "weeks_logged": weeks,
             "average_adherence": round(avg, 1) if avg is not None else 0,
             "last_metrics": dict(last) if last else None,
+            "membership": clients.membership_info(client),
         }
         return jsonify(client)
 
@@ -208,6 +210,25 @@ def create_app(config=None):
         focus, plan = ai_program.generate(client["program"], experience, payload.get("seed"))
         return jsonify({"client": name, "experience": experience, "focus": focus,
                         "plan": plan})
+
+    @app.get("/clients/<name>/membership")
+    def membership(name):
+        client = clients.get_client(name)
+        if not client:
+            return error("Client not found", 404)
+        return jsonify(clients.membership_info(client))
+
+    @app.post("/clients/<name>/generate-program")
+    def generate_program(name):
+        if not clients.get_client(name):
+            return error("Client not found", 404)
+        rng = random.Random((json_body() or {}).get("seed"))
+        program_type = rng.choice(list(programs.PROGRAM_TEMPLATES))
+        detail = rng.choice(programs.PROGRAM_TEMPLATES[program_type])
+        conn = db.get_db()
+        conn.execute("UPDATE clients SET program=? WHERE name=?", (detail, name))
+        conn.commit()
+        return jsonify({"client": name, "program_type": program_type, "program": detail})
 
     @app.get("/clients/<name>/report.pdf")
     def client_report(name):
