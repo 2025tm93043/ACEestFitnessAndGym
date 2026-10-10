@@ -1,6 +1,10 @@
 """ACEest Fitness & Gym - Flask application."""
-from flask import Flask, jsonify, request
+import csv
+import io
 
+from flask import Flask, Response, jsonify, request
+
+import charts
 import clients
 import programs
 from version import __version__
@@ -22,6 +26,9 @@ def create_app(config=None):
     app = Flask(__name__)
     if config:
         app.config.update(config)
+
+    app.config["CLIENT_STORE"] = []  # in-memory client list (v1.1.2)
+    store = app.config["CLIENT_STORE"]
 
     # --- ROUTES-BEGIN ---
     @app.get("/")
@@ -72,10 +79,41 @@ def create_app(config=None):
         if problems:
             return error("Please fill client name and program.", 400, problems)
         clean["calories"] = programs.estimate_calories(clean["weight"], clean["program"])
+        store.append(clean)
         return jsonify({
             "message": f"Client {clean['name']} saved successfully.",
             "client": clean,
         }), 201
+
+    @app.get("/clients")
+    def list_clients():
+        return jsonify(store)
+
+    @app.get("/clients/export.csv")
+    def export_csv():
+        if not store:
+            return error("No clients to export.", 404)
+        out = io.StringIO()
+        writer = csv.writer(out)
+        writer.writerow(["Name", "Age", "Weight", "Program", "Adherence", "Notes"])
+        for c in store:
+            writer.writerow([c["name"], c["age"], c["weight"], c["program"],
+                             c["adherence"], c["notes"]])
+        return Response(out.getvalue(), mimetype="text/csv", headers={
+            "Content-Disposition": "attachment; filename=clients.csv"})
+
+    @app.get("/clients/chart-data")
+    def chart_data():
+        return jsonify({"labels": [c["name"] for c in store],
+                        "adherence": [c["adherence"] for c in store]})
+
+    @app.get("/clients/chart.svg")
+    def chart_svg():
+        if not store:
+            return error("No clients to chart.", 404)
+        svg = charts.bar_chart_svg("Client Progress", [c["name"] for c in store],
+                                   [c["adherence"] for c in store], "Adherence %")
+        return Response(svg, mimetype="image/svg+xml")
 
     @app.get("/site-metrics")
     def site_metrics():
