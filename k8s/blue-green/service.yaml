@@ -1,0 +1,31 @@
+# LIVE service. Traffic goes to the slot in 'selector'. Switch with scripts/bluegreen-switch.sh
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-bluegreen
+  namespace: aceest
+spec:
+  type: NodePort
+  selector:
+    app: aceest-bg
+    slot: blue
+  ports:
+    - port: 80
+      targetPort: 5000
+      nodePort: 30082
+---
+# PREVIEW of green on :30086, so it can be tested before the cut-over
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-green-preview
+  namespace: aceest
+spec:
+  type: NodePort
+  selector:
+    app: aceest-bg
+    slot: green
+  ports:
+    - port: 80
+      targetPort: 5000
+      nodePort: 30086

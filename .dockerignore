@@ -10,3 +10,12 @@ test-results
 Jenkinsfile
 README.md
 CHANGELOG.md
+k8s
+infra
+scripts
+docs
+reports
+dist
+coverage.xml
+.coverage
+sonar-project.properties
